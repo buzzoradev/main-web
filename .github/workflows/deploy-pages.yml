@@ -1,0 +1,49 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # API routes can't be statically exported; GitHub Pages serves static
+      # files only. The checkout falls back to client-side order creation.
+      - run: rm -rf app/api
+      - run: npm run build
+        env:
+          NEXT_EXPORT: "1"
+          NEXT_PUBLIC_BASE_PATH: /softly
+          NEXT_PUBLIC_SITE_URL: https://msuhan05-afk.github.io/softly
+          # WhatsApp orders + support button. (On Vercel, set this in the
+          # project's Environment Variables instead.)
+          NEXT_PUBLIC_WHATSAPP_NUMBER: "916005039259"
+          NEXT_PUBLIC_CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL }}
+      # Publish the static export to the gh-pages branch. Creating this
+      # branch auto-enables GitHub Pages (branch source) on the repo.
+      - run: |
+          touch out/.nojekyll
+          cd out
+          git init -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Deploy ${GITHUB_SHA::7} to GitHub Pages"
+          git push -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

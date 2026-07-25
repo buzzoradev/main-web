@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+html,
+body {
+  background: #fbf7ef;
+  color: #241c12;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: #f5d68e;
+  color: #241c12;
+}
+
+/* Cormorant Garamond needs weight to carry display sizes with presence. */
+.font-display {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.eyebrow {
+  @apply text-xs font-semibold uppercase tracking-wider2 text-honey-700;
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-full bg-honey-400 px-7 py-3.5 text-sm font-semibold uppercase tracking-widest text-charcoal transition hover:bg-honey-300 active:scale-[0.98];
+}
+
+.btn-dark {
+  @apply inline-flex items-center justify-center gap-2 rounded-full bg-charcoal px-7 py-3.5 text-sm font-semibold uppercase tracking-widest text-cream transition hover:bg-charcoal-soft active:scale-[0.98];
+}
+
+/* Playful coral accent CTA — the "Order now" energy. */
+.btn-accent {
+  @apply inline-flex items-center justify-center gap-2 rounded-full bg-accent-400 px-7 py-3.5 text-sm font-bold uppercase tracking-widest text-white shadow-[0_8px_0_-2px_#C63E22] transition hover:bg-accent-500 hover:shadow-[0_6px_0_-2px_#9E301A] active:translate-y-1 active:shadow-[0_3px_0_-2px_#9E301A];
+}
+
+/* Sticker-style badge. */
+.sticker {
+  @apply inline-flex -rotate-3 items-center gap-1.5 rounded-full border-2 border-charcoal bg-honey-200 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-charcoal shadow-[2px_2px_0_#241C12];
+}
+
+.btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-full border border-charcoal/25 px-7 py-3.5 text-sm font-semibold uppercase tracking-widest text-charcoal transition hover:border-charcoal hover:bg-charcoal hover:text-cream active:scale-[0.98];
+}
+
+.input {
+  @apply w-full rounded-xl border border-charcoal/15 bg-white px-4 py-3 text-sm text-charcoal outline-none transition placeholder:text-charcoal-mute/60 focus:border-honey-500 focus:ring-2 focus:ring-honey-200;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .animate-floaty,
+  .animate-floaty-slow,
+  .animate-wobble,
+  .animate-wingL,
+  .animate-wingR,
+  .animate-drip,
+  .animate-spin-slow {
+    animation: none !important;
+  }
+}
+
+/* Wavy honey-drip divider between sections. */
+.drip-divider {
+  height: 26px;
+  background-repeat: repeat-x;
+  background-size: 48px 26px;
+}
