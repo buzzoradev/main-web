@@ -45,6 +45,7 @@ export default function Footer() {
               <li><Link href="/about" className="text-cream/80 transition hover:text-honey-300">Our Story</Link></li>
               <li><Link href="/hive-to-jar" className="text-cream/80 transition hover:text-honey-300">From Hive to Jar</Link></li>
               <li><Link href="/journal" className="text-cream/80 transition hover:text-honey-300">The Honey Journal</Link></li>
+              <li><Link href="/policies" className="text-cream/80 transition hover:text-honey-300">Policies</Link></li>
             </ul>
           </div>
         </div>
