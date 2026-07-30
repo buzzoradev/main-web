@@ -45,7 +45,12 @@ export default function Footer() {
               <li><Link href="/about" className="text-cream/80 transition hover:text-honey-300">Our Story</Link></li>
               <li><Link href="/hive-to-jar" className="text-cream/80 transition hover:text-honey-300">From Hive to Jar</Link></li>
               <li><Link href="/journal" className="text-cream/80 transition hover:text-honey-300">The Honey Journal</Link></li>
-              <li><Link href="/policies" className="text-cream/80 transition hover:text-honey-300">Policies</Link></li>
+              <li><Link href="/policies" className="text-cream/80 transition hover:text-honey-300">All Policies</Link></li>
+              <li><Link href="/policies/terms-and-conditions" className="text-cream/80 transition hover:text-honey-300">Terms &amp; Conditions</Link></li>
+              <li><Link href="/policies/privacy-policy" className="text-cream/80 transition hover:text-honey-300">Privacy Policy</Link></li>
+              <li><Link href="/policies/refund-cancellation" className="text-cream/80 transition hover:text-honey-300">Refund &amp; Cancellation</Link></li>
+              <li><Link href="/policies/return-policy" className="text-cream/80 transition hover:text-honey-300">Return Policy</Link></li>
+              <li><Link href="/policies/shipping-policy" className="text-cream/80 transition hover:text-honey-300">Shipping Policy</Link></li>
             </ul>
           </div>
         </div>
@@ -57,4 +62,3 @@ export default function Footer() {
     </footer>
   );
 }
-
