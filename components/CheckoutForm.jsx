@@ -7,6 +7,7 @@ import { useCart } from "@/components/CartContext";
 import { formatPrice } from "@/lib/products";
 import { buildOrder, orderToWhatsAppText, whatsAppUrl, orderMailto } from "@/lib/order";
 import { payWithRazorpay } from "@/lib/razorpay-client";
+import { payWithPhonePe } from "@/lib/phonepe-client";
 import BeeCharacter from "@/components/BeeCharacter";
 import JarVisual from "@/components/JarVisual";
 import GoogleSignIn from "@/components/GoogleSignIn";
@@ -23,10 +24,12 @@ const fields = [
 ];
 
 // Checkout adapts to what's configured:
-// - Razorpay online payment when NEXT_PUBLIC_PAYMENT_PROVIDER=razorpay
+// - Razorpay or PhonePe online payment when NEXT_PUBLIC_PAYMENT_PROVIDER is set
 // - WhatsApp order when NEXT_PUBLIC_WHATSAPP_NUMBER is set (works on static hosting)
 // - email/manual confirmation otherwise
 const RAZORPAY = process.env.NEXT_PUBLIC_PAYMENT_PROVIDER === "razorpay";
+const PHONEPE = process.env.NEXT_PUBLIC_PAYMENT_PROVIDER === "phonepe";
+const ONLINE_PAYMENT = RAZORPAY || PHONEPE;
 const WHATSAPP = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
 const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL;
 
@@ -101,7 +104,7 @@ export default function CheckoutForm() {
     finish(order);
   };
 
-  // --- Razorpay online payment -----------------------------------------------
+  // --- Online payment ---------------------------------------------------------
   const payOnline = async (e) => {
     e.preventDefault();
     const form = e.currentTarget.closest("form");
@@ -109,7 +112,9 @@ export default function CheckoutForm() {
     setSubmitting(true);
     setError(null);
     try {
-      const order = await payWithRazorpay({ items: cartPayload, customer });
+      const order = PHONEPE
+        ? await payWithPhonePe({ items: cartPayload, customer })
+        : await payWithRazorpay({ items: cartPayload, customer });
       finish(order);
     } catch (err) {
       setError(err.message);
@@ -152,8 +157,8 @@ export default function CheckoutForm() {
           </div>
           <h2 className="font-display text-2xl">Payment</h2>
           <p className="mt-3 max-w-[36ch] text-sm leading-relaxed text-charcoal-mute sm:max-w-none">
-            {RAZORPAY
-              ? "Pay securely online with cards, UPI or netbanking. Your payment is confirmed instantly and verified on our side."
+            {ONLINE_PAYMENT
+              ? `Pay securely online with ${PHONEPE ? "UPI, cards or netbanking through PhonePe" : "cards, UPI or netbanking"}. Your payment is confirmed and verified on our side.`
               : WHATSAPP
                 ? "Place your order and it opens in WhatsApp, pre-filled and ready to send to us. We'll confirm payment (UPI / bank transfer / cash on delivery) and delivery directly with you."
                 : "Place your order and the Buzzora team will reach out on your phone or email to arrange payment and delivery."}
@@ -194,7 +199,7 @@ export default function CheckoutForm() {
             </div>
             <div className="flex justify-between">
               <span className="text-charcoal-mute">Shipping</span>
-              <span>{RAZORPAY ? "Free" : "Confirmed with order"}</span>
+              <span>{ONLINE_PAYMENT ? "Free" : "Confirmed with order"}</span>
             </div>
             <div className="flex justify-between border-t border-charcoal/10 pt-3 font-display text-xl">
               <span>Total</span>
@@ -206,7 +211,7 @@ export default function CheckoutForm() {
             <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
           )}
 
-          {RAZORPAY ? (
+          {ONLINE_PAYMENT ? (
             <>
               <button onClick={payOnline} disabled={submitting} className="btn-accent mt-6 w-full disabled:opacity-60">
                 {submitting ? "Processing…" : `Pay ${formatPrice(subtotal)}`}
