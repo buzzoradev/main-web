@@ -76,6 +76,21 @@ Card details never touch this codebase — Razorpay's hosted checkout handles
 them. GitHub Pages can't run these API routes, so online payment requires
 Vercel (or any Node server).
 
+### 3. Online card/UPI payments via PhonePe Standard Checkout V2
+
+Set `NEXT_PUBLIC_PAYMENT_PROVIDER=phonepe` and add the PhonePe credentials to
+Vercel Environment Variables:
+
+- `PHONEPE_ENV=sandbox` for UAT, then `production` after testing
+- `PHONEPE_CLIENT_ID`
+- `PHONEPE_CLIENT_SECRET`
+- `PHONEPE_CLIENT_VERSION`
+
+The server obtains the OAuth token, creates the payment, opens PhonePe's hosted
+checkout, and checks the order status server-side after the checkout concludes.
+PhonePe credentials are never exposed to the browser. Test in sandbox first;
+do not add real credentials to Git or `.env.example`.
+
 ## Deploying to Vercel
 
 1. Push this repo to GitHub and import it into Vercel.
