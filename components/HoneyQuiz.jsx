@@ -5,12 +5,11 @@ import Link from "next/link";
 import { products } from "@/lib/products";
 import JarVisual from "@/components/JarVisual";
 
-// One-question product finder — reduces decision fatigue without a long quiz.
 const options = [
-  { label: "Something floral & aromatic", emoji: "🌸", pick: "wild-tulsi" },
-  { label: "Something rich & complex", emoji: "🍂", pick: "multiflora" },
-  { label: "Something mild & everyday", emoji: "☕", pick: "multiflora" },
-  { label: "I want to explore", emoji: "🧭", pick: "wild-tulsi" },
+  { label: "Something floral & aromatic", emoji: "🌸", pick: "sulai" },
+  { label: "Light & delicate amber honey", emoji: "🍯", pick: "sulai" },
+  { label: "Pure Himalayan raw honey", emoji: "🏔️", pick: "sulai" },
+  { label: "I want to explore Kashmir Sulai Honey", emoji: "🧭", pick: "sulai" },
 ];
 
 export default function HoneyQuiz() {
