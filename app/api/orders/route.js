@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { products } from "@/lib/products";
 import { newOrderId } from "@/lib/order";
 import { createOrderRecord } from "@/lib/db/orders";
+import { generateOrderVerificationToken } from "@/lib/security";
 
 export async function POST(request) {
   let body;
@@ -101,10 +102,16 @@ export async function POST(request) {
     });
 
     // 7. Return Response Compatible with Existing Checkout UI
+    const verificationToken = generateOrderVerificationToken(
+      dbResult.buzzoraOrderId,
+      customer.email.trim()
+    );
+
     const orderResponse = {
       id: dbResult.buzzoraOrderId,
       status: "pending-confirmation",
       paymentMethod: process.env.PAYMENT_PROVIDER || "manual",
+      verificationToken,
       customer: {
         name: customer.name.trim(),
         email: customer.email.trim(),

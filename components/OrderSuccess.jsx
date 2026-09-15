@@ -10,6 +10,7 @@ import BeeCharacter from "@/components/BeeCharacter";
 export default function OrderSuccess() {
   const params = useSearchParams();
   const orderId = params.get("order");
+  const vt = params.get("vt");
   const { clearCart } = useCart();
 
   const [order, setOrder] = useState(null);
@@ -26,7 +27,8 @@ export default function OrderSuccess() {
 
     async function loadServerOrder() {
       try {
-        const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}`);
+        const queryVt = vt ? `?vt=${encodeURIComponent(vt)}` : "";
+        const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}${queryVt}`);
         if (res.ok) {
           const data = await res.json();
           if (isMounted && data?.order) {
@@ -60,7 +62,7 @@ export default function OrderSuccess() {
     return () => {
       isMounted = false;
     };
-  }, [orderId, clearCart]);
+  }, [orderId, vt, clearCart]);
 
   if (!loaded) {
     return (
@@ -149,7 +151,7 @@ export default function OrderSuccess() {
         </div>
       )}
 
-      <Link href="/shop" className="btn-primary mt-10">
+      <Link href="/" className="btn-primary mt-10">
         Continue Shopping
       </Link>
     </div>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getPhonePeOrderStatus } from "@/lib/phonepe/server";
+import { generateOrderVerificationToken } from "@/lib/security";
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -35,7 +36,7 @@ export async function GET(request) {
 
   const { data: order, error: orderErr } = await supabase
     .from("orders")
-    .select("id, buzzora_order_id, status, total")
+    .select("id, buzzora_order_id, customer_email, status, total")
     .eq("id", payment.order_id)
     .single();
 
@@ -44,9 +45,13 @@ export async function GET(request) {
     return NextResponse.redirect(`${cleanSiteUrl}/shop`);
   }
 
+  const vt = generateOrderVerificationToken(order.buzzora_order_id, order.customer_email);
+
   // Fast Path: If already SUCCESS & CONFIRMED (e.g. processed by Webhook first)
   if (payment.payment_status === "SUCCESS" || order.status === "CONFIRMED") {
-    return NextResponse.redirect(`${cleanSiteUrl}/order-success?order=${encodeURIComponent(order.buzzora_order_id)}`);
+    return NextResponse.redirect(
+      `${cleanSiteUrl}/order-success?order=${encodeURIComponent(order.buzzora_order_id)}&vt=${encodeURIComponent(vt)}`
+    );
   }
 
   // B2. Perform Server-Side Status Check with PhonePe
@@ -101,7 +106,9 @@ export async function GET(request) {
         .eq("status", "PENDING");
     }
 
-    return NextResponse.redirect(`${cleanSiteUrl}/order-success?order=${encodeURIComponent(order.buzzora_order_id)}`);
+    return NextResponse.redirect(
+      `${cleanSiteUrl}/order-success?order=${encodeURIComponent(order.buzzora_order_id)}&vt=${encodeURIComponent(vt)}`
+    );
   }
 
   // B5. Handle FAILED Status
