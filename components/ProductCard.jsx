@@ -16,9 +16,9 @@ export default function ProductCard({ product }) {
         className="relative flex items-center justify-center bg-gradient-to-b from-honey-50 to-parchment px-6 pb-4 pt-8"
       >
         <div className="flex h-[204px] items-center justify-center transition duration-500 group-hover:-translate-y-1.5 group-hover:scale-[1.03]">
-          {product.image ? (
+          {(defaultSize?.image || product.image) ? (
             <img
-              src={product.image}
+              src={defaultSize?.image || product.image}
               alt={product.name}
               className="h-full w-auto max-h-[204px] object-contain drop-shadow-md"
             />

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCart } from "@/components/CartContext";
 import { formatPrice } from "@/lib/products";
-import { buildOrder, orderToWhatsAppText, whatsAppUrl, orderMailto } from "@/lib/order";
+import { orderToWhatsAppText, whatsAppUrl } from "@/lib/order";
 import { payWithRazorpay } from "@/lib/razorpay-client";
 import { payWithPhonePe } from "@/lib/phonepe-client";
 import BeeCharacter from "@/components/BeeCharacter";
@@ -23,23 +23,49 @@ const fields = [
   { name: "country", label: "Country", autoComplete: "country-name" },
 ];
 
-// Checkout adapts to what's configured:
-// - Razorpay or PhonePe online payment when NEXT_PUBLIC_PAYMENT_PROVIDER is set
-// - WhatsApp order when NEXT_PUBLIC_WHATSAPP_NUMBER is set (works on static hosting)
-// - email/manual confirmation otherwise
 const RAZORPAY = process.env.NEXT_PUBLIC_PAYMENT_PROVIDER === "razorpay";
 const PHONEPE = process.env.NEXT_PUBLIC_PAYMENT_PROVIDER === "phonepe";
 const ONLINE_PAYMENT = RAZORPAY || PHONEPE;
 const WHATSAPP = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
-const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL;
 
 export default function CheckoutForm() {
   const { items, subtotal, clearCart } = useCart();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [customer, setCustomer] = useState({ country: "India" });
   const [googleUser, setGoogleUser] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [existingBuzzoraOrderId, setExistingBuzzoraOrderId] = useState(null);
+
+  const [idempotencyKey] = useState(
+    () => "idem_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8)
+  );
+
+  // Check URL query parameters for failed/pending payment return
+  useEffect(() => {
+    const orderParam = searchParams.get("order");
+    const errorParam = searchParams.get("error");
+    const statusParam = searchParams.get("status");
+
+    if (orderParam && /^BZ-[A-Z0-9-]+$/i.test(orderParam.trim())) {
+      setExistingBuzzoraOrderId(orderParam.trim());
+      if (errorParam === "payment_failed") {
+        setError(
+          `Payment was not completed for Order ${orderParam.trim()}. Your cart and order are saved — please try paying again below.`
+        );
+      } else if (errorParam === "amount_mismatch") {
+        setError(
+          `Payment security check failed for Order ${orderParam.trim()}. Please contact support or try paying again.`
+        );
+      } else if (statusParam === "pending" || statusParam === "pending_verification") {
+        setError(
+          `Payment verification is still processing for Order ${orderParam.trim()}. If you completed payment, your order will be confirmed shortly.`
+        );
+      }
+    }
+  }, [searchParams]);
 
   const handleGoogleSignIn = (userInfo) => {
     setGoogleUser(userInfo);
@@ -54,7 +80,7 @@ export default function CheckoutForm() {
     setGoogleUser(null);
   };
 
-  if (items.length === 0) {
+  if (items.length === 0 && !submitting) {
     return (
       <div className="mt-10 rounded-4xl border border-charcoal/10 bg-white p-10 text-center">
         <p className="text-4xl">🫙</p>
@@ -86,22 +112,42 @@ export default function CheckoutForm() {
   };
 
   // --- WhatsApp / email / manual order ---------------------------------------
-  const placeManualOrder = (e) => {
+  const placeManualOrder = async (e) => {
     e.preventDefault();
     const form = e.currentTarget.closest("form");
     if (!requireForm(form)) return;
     setSubmitting(true);
     setError(null);
-    const order = buildOrder(cartPayload, customer, {
-      paymentMethod: WHATSAPP ? "whatsapp" : "manual",
-    });
-    if (WHATSAPP) {
-      const url = whatsAppUrl(WHATSAPP, orderToWhatsAppText(order, customer));
-      window.open(url, "_blank", "noopener");
-    } else if (CONTACT_EMAIL) {
-      window.location.href = orderMailto(CONTACT_EMAIL, order, customer);
+
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-idempotency-key": idempotencyKey,
+        },
+        body: JSON.stringify({
+          customer,
+          items: cartPayload,
+          idempotencyKey,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create order");
+      }
+
+      const order = data.order;
+      if (WHATSAPP) {
+        const url = whatsAppUrl(WHATSAPP, orderToWhatsAppText(order, customer));
+        window.open(url, "_blank", "noopener");
+      }
+      finish(order);
+    } catch (err) {
+      setError(err.message || "An unexpected error occurred while placing your order.");
+      setSubmitting(false);
     }
-    finish(order);
   };
 
   // --- Online payment ---------------------------------------------------------
@@ -109,15 +155,50 @@ export default function CheckoutForm() {
     e.preventDefault();
     const form = e.currentTarget.closest("form");
     if (!requireForm(form)) return;
+
     setSubmitting(true);
     setError(null);
+
     try {
-      const order = PHONEPE
-        ? await payWithPhonePe({ items: cartPayload, customer })
-        : await payWithRazorpay({ items: cartPayload, customer });
-      finish(order);
+      let activeBuzzoraOrderId = existingBuzzoraOrderId;
+
+      // 1. Create Buzzora Order in Supabase FIRST if not already created
+      if (!activeBuzzoraOrderId) {
+        const res = await fetch("/api/orders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-idempotency-key": idempotencyKey,
+          },
+          body: JSON.stringify({
+            customer,
+            items: cartPayload,
+            idempotencyKey,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to create order");
+        }
+
+        activeBuzzoraOrderId = data.order.id;
+        setExistingBuzzoraOrderId(activeBuzzoraOrderId);
+      }
+
+      // 2. Initiate Payment
+      if (PHONEPE) {
+        // Pass ONLY the persistent buzzoraOrderId to PhonePe initiation
+        await payWithPhonePe({ buzzoraOrderId: activeBuzzoraOrderId });
+        // PhonePe iframe handles redirect to /api/phonepe/callback -> /order-success
+      } else if (RAZORPAY) {
+        const order = await payWithRazorpay({ items: cartPayload, customer });
+        finish(order);
+      }
     } catch (err) {
-      setError(err.message);
+      setError(
+        err.message || "Payment could not be completed. Your order is saved and you can try again."
+      );
       setSubmitting(false);
     }
   };
@@ -174,9 +255,9 @@ export default function CheckoutForm() {
               <li key={`${item.productId}-${item.sizeSku}`} className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-3">
                   <div className="flex h-12 w-10 shrink-0 items-center justify-center rounded-lg bg-honey-50 p-1">
-                    {item.product.image ? (
+                    {(item.size?.image || item.product.image) ? (
                       <img
-                        src={item.product.image}
+                        src={item.size?.image || item.product.image}
                         alt={item.product.name}
                         className="h-10 w-auto max-h-10 object-contain drop-shadow-sm"
                       />
@@ -214,7 +295,11 @@ export default function CheckoutForm() {
           {ONLINE_PAYMENT ? (
             <>
               <button onClick={payOnline} disabled={submitting} className="btn-accent mt-6 w-full disabled:opacity-60">
-                {submitting ? "Processing…" : `Pay ${formatPrice(subtotal)}`}
+                {submitting
+                  ? "Processing…"
+                  : existingBuzzoraOrderId
+                  ? `Retry Payment (${formatPrice(subtotal)})`
+                  : `Pay ${formatPrice(subtotal)}`}
               </button>
               {WHATSAPP && (
                 <button onClick={placeManualOrder} disabled={submitting} className="btn-ghost mt-2 w-full disabled:opacity-60">
