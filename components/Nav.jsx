@@ -12,7 +12,6 @@ const links = [
   { href: "/about", label: "Our Story" },
   { href: "/hive-to-jar", label: "From Hive to Jar" },
   { href: "/journal", label: "Journal" },
-  { href: "/contact", label: "Contact" },
 ];
 
 export default function Nav() {

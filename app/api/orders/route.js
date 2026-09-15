@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import { products } from "@/lib/products";
-import { newOrderId } from "@/lib/order";
-import { createOrderRecord } from "@/lib/db/orders";
+
+// Order creation endpoint.
+//
+// Prices are always recomputed server-side from the catalogue — the client's
+// totals are never trusted. Payment is provider-agnostic: set PAYMENT_PROVIDER
+// to "razorpay" or "stripe" and add keys in .env to enable online payment;
+// until then orders are accepted as Cash on Delivery / manual confirmation.
+// Real payment capture must be verified via provider webhooks before an order
+// is marked paid — see README "Payments".
 
 export async function POST(request) {
   let body;
@@ -11,123 +18,68 @@ export async function POST(request) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const headerIdempotencyKey = request.headers.get("x-idempotency-key") || request.headers.get("idempotency-key");
-  const { customer, items, orderId: clientOrderId, idempotencyKey: bodyIdempotencyKey } = body || {};
-  const idempotencyKey = bodyIdempotencyKey || headerIdempotencyKey || null;
+  const { customer, items } = body || {};
 
-  // 1. Validate Customer Contact & Shipping Fields
   const required = ["name", "email", "phone", "address", "city", "state", "postcode", "country"];
   for (const field of required) {
     if (!customer?.[field] || typeof customer[field] !== "string" || !customer[field].trim()) {
-      return NextResponse.json({ error: `Missing required field: ${field}` }, { status: 400 });
+      return NextResponse.json({ error: `Missing field: ${field}` }, { status: 400 });
     }
   }
-
-  // 2. Validate Cart Items Array
   if (!Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
   }
 
-  // 3. Reconstruct lines & price totals strictly from server-side product catalog
+  // Rebuild and price every line from the server-side catalogue.
   const lines = [];
-  const itemsData = [];
-
   for (const item of items) {
     const product = products.find((p) => p.id === item.productId);
     const size = product?.sizes.find((s) => s.sku === item.sizeSku);
     const qty = Number(item.qty);
-
     if (!product || !size || !Number.isInteger(qty) || qty < 1 || qty > 50) {
       return NextResponse.json({ error: "Invalid cart item" }, { status: 400 });
     }
-
     if (!size.inStock) {
-      return NextResponse.json(
-        { error: `${product.name} (${size.weight}) is out of stock` },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: `${product.name} (${size.weight}) is out of stock` }, { status: 400 });
     }
-
-    const unitPrice = size.price;
-    const lineTotal = unitPrice * qty;
-
     lines.push({
       name: product.name,
       weight: size.weight,
       sku: size.sku,
       qty,
-      unitPrice,
-      lineTotal,
-    });
-
-    itemsData.push({
-      product_id: product.id,
-      product_name: product.name,
-      size_sku: size.sku,
-      weight: size.weight,
-      quantity: qty,
-      unit_price: unitPrice,
-      line_total: lineTotal,
+      unitPrice: size.price,
+      lineTotal: size.price * qty,
     });
   }
 
-  // 4. Calculate Server-Side Financial Totals (INR)
   const subtotal = lines.reduce((sum, l) => sum + l.lineTotal, 0);
-  const shippingCost = 0;
-  const total = subtotal + shippingCost;
+  const shipping = 0; // PLACEHOLDER: set real shipping rules before launch.
+  const total = subtotal + shipping;
 
-  // 5. Generate / Preserve Unique Public Buzzora Order ID (e.g. 'BZ-LVT26K1L-X9A1')
-  const buzzoraOrderId = clientOrderId || newOrderId();
+  const orderId = `BZ-${Date.now().toString(36).toUpperCase()}-${Math.random()
+    .toString(36)
+    .slice(2, 6)
+    .toUpperCase()}`;
 
-  // 6. Save Order & Items Atomically to Supabase PostgreSQL Database via RPC
-  try {
-    const dbResult = await createOrderRecord({
-      orderData: {
-        buzzora_order_id: buzzoraOrderId,
-        customer_name: customer.name.trim(),
-        customer_email: customer.email.trim(),
-        customer_phone: customer.phone.trim(),
-        shipping_address: customer.address.trim(),
-        city: customer.city.trim(),
-        state: customer.state.trim(),
-        postcode: customer.postcode.trim(),
-        country: customer.country.trim(),
-        subtotal,
-        shipping_cost: shippingCost,
-        total,
-      },
-      itemsData,
-      idempotencyKey,
-    });
+  // NOTE: persistence (database) and payment-provider order creation plug in
+  // here. Without a configured provider the order is returned as
+  // "pending-confirmation" and should be reconciled manually by the business.
+  const order = {
+    id: orderId,
+    status: "pending-confirmation",
+    paymentMethod: process.env.PAYMENT_PROVIDER || "manual",
+    customer: {
+      name: customer.name.trim(),
+      email: customer.email.trim(),
+      city: customer.city.trim(),
+      state: customer.state.trim(),
+    },
+    lines,
+    subtotal,
+    shipping,
+    total,
+    createdAt: new Date().toISOString(),
+  };
 
-    // 7. Return Response Compatible with Existing Checkout UI
-    const orderResponse = {
-      id: dbResult.buzzoraOrderId,
-      status: "pending-confirmation",
-      paymentMethod: process.env.PAYMENT_PROVIDER || "manual",
-      customer: {
-        name: customer.name.trim(),
-        email: customer.email.trim(),
-        phone: customer.phone.trim(),
-        address: customer.address.trim(),
-        city: customer.city.trim(),
-        state: customer.state.trim(),
-        postcode: customer.postcode.trim(),
-        country: customer.country.trim(),
-      },
-      lines,
-      subtotal,
-      shipping: shippingCost,
-      total,
-      createdAt: dbResult.createdAt || new Date().toISOString(),
-    };
-
-    return NextResponse.json({ order: orderResponse });
-  } catch (error) {
-    console.error("[POST /api/orders Error]:", error?.message || error);
-    return NextResponse.json(
-      { error: "Failed to create atomic order in database." },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({ order });
 }

@@ -11,7 +11,7 @@ const pillars = [
   {
     emoji: "🏔️",
     title: "Why Jammu & Kashmir",
-    text: "The valleys of J&K hold some of the most diverse and unspoiled flora in the Himalayan region. Wild Sulai flora, mountain wildflowers and blossoming trees give the honey a character no factory blend can imitate. Where the bees live is what you taste.",
+    text: "The valleys of J&K hold some of the most diverse and unspoiled flora in the Himalayan region. Wild tulsi, wildflowers and blossoming trees give the honey a character no factory blend can imitate. Where the bees live is what you taste.",
   },
   {
     emoji: "🍯",

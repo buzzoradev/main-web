@@ -5,7 +5,7 @@ import Reveal from "@/components/Reveal";
 export const metadata = {
   title: "The Honey Journal",
   description:
-    "Honey education from Buzzora — raw honey, Sulai honey, harvesting, and the bees behind every jar.",
+    "Honey education from Buzzora — raw honey, multiflora, harvesting, and the bees behind every jar.",
 };
 
 export default function JournalPage() {

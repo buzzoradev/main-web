@@ -3,7 +3,7 @@ import ShopGrid from "@/components/ShopGrid";
 export const metadata = {
   title: "Shop Raw Honey",
   description:
-    "Shop Buzzora's raw Sulai honey ethically sourced from the valleys of Jammu & Kashmir.",
+    "Shop Buzzora's raw honey — Wild Tulsi and Multiflora — ethically sourced from the valleys of Jammu & Kashmir.",
 };
 
 export default function ShopPage() {
