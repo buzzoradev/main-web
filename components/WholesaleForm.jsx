@@ -4,7 +4,7 @@ import { useState } from "react";
 
 // Wholesale enquiry form. Until a backend inbox/CRM is connected, submissions
 // open a pre-filled email to the business address configured in env.
-const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "buzzora.dev@gmail.com";
+const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL;
 
 export default function WholesaleForm() {
   const [form, setForm] = useState({});

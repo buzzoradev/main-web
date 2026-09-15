@@ -29,12 +29,12 @@ export const metadata = {
     template: "%s — Buzzora",
   },
   description:
-    "From hive to jar, nothing added, nothing taken away. Raw Sulai Honey ethically sourced from the serene valleys of Jammu & Kashmir.",
+    "From hive to jar, nothing added, nothing taken away. Raw honey — Wild Tulsi and Multiflora — ethically sourced from the serene valleys of Jammu & Kashmir.",
   keywords: [
     "raw honey",
     "Jammu Kashmir honey",
-    "sulai honey",
-    "Kashmir sulai honey",
+    "wild tulsi honey",
+    "multiflora honey",
     "natural honey India",
   ],
   openGraph: {

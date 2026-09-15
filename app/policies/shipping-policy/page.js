@@ -4,11 +4,11 @@ export const metadata = { title: "Shipping Policy", description: "Buzzora shippi
 
 export default function ShippingPolicyPage() {
   return (
-    <PolicyLayout title="Shipping Policy" intro="Shipping timelines, delivery, courier arrangements, and shipping charges for Buzzora, operated by Kannu (Sole Proprietorship).">
+    <PolicyLayout title="Shipping Policy" intro="Shipping timelines, delivery, courier arrangements, and shipping charges.">
       <PolicySection>
-        <p>Orders placed through Buzzora are shipped through registered domestic courier companies and/or speed post only. Orders are shipped within 5 days from the date of the order and/or payment, or according to the delivery date agreed at order confirmation, subject to courier and post office norms.</p>
-        <p>The Platform Owner (Kannu, operating as Buzzora) is not liable for delays caused by courier companies or postal authorities. Orders are delivered to the shipping address provided by the buyer at purchase. Delivery confirmation will be sent to the email ID provided at order placement.</p>
-        <p>Any shipping costs levied by Buzzora, as applicable, are non-refundable.</p>
+        <p>Orders are shipped through registered domestic courier companies and/or speed post only. Orders are shipped within 5 days from the date of the order and/or payment, or according to the delivery date agreed at order confirmation, subject to courier and post office norms.</p>
+        <p>The Platform Owner is not liable for delays by the courier company or postal authority. Orders are delivered to the address provided by the buyer at purchase. Delivery of services will be confirmed on the email ID provided at registration.</p>
+        <p>Any shipping costs levied by the seller or Platform Owner, as applicable, are not refundable.</p>
       </PolicySection>
     </PolicyLayout>
   );

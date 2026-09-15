@@ -1,178 +1,117 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { initiatePhonePePayment } from "@/lib/phonepe/server";
-import { isPhonePeMockModeEnabled, initiateMockPhonePePayment } from "@/lib/phonepe/mock";
+import { products } from "@/lib/products";
+import { newOrderId } from "@/lib/order";
+
+function phonePeConfig() {
+  const production = process.env.PHONEPE_ENV === "production";
+  return {
+    clientId: process.env.PHONEPE_CLIENT_ID,
+    clientSecret: process.env.PHONEPE_CLIENT_SECRET,
+    clientVersion: process.env.PHONEPE_CLIENT_VERSION,
+    authUrl:
+      process.env.PHONEPE_AUTH_URL ||
+      (production
+        ? "https://api.phonepe.com/apis/identity-manager/v1/oauth/token"
+        : "https://api-preprod.phonepe.com/apis/pg-sandbox/v1/oauth/token"),
+    apiBase:
+      process.env.PHONEPE_API_BASE_URL ||
+      (production
+        ? "https://api.phonepe.com/apis/pg"
+        : "https://api-preprod.phonepe.com/apis/pg-sandbox"),
+  };
+}
+
+function getCartTotal(items) {
+  if (!Array.isArray(items) || items.length === 0) throw new Error("Your cart is empty.");
+
+  let total = 0;
+  for (const item of items) {
+    const product = products.find((p) => p.id === item.productId);
+    const size = product?.sizes.find((s) => s.sku === item.sizeSku);
+    const qty = Number(item.qty);
+    if (!product || !size || !Number.isInteger(qty) || qty < 1 || qty > 50) {
+      throw new Error("Invalid cart item.");
+    }
+    if (!size.inStock) throw new Error(`${product.name} (${size.weight}) is out of stock.`);
+    total += size.price * qty;
+  }
+  return total;
+}
+
+async function getAccessToken(config) {
+  const response = await fetch(config.authUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: config.clientId,
+      client_version: String(config.clientVersion),
+      client_secret: config.clientSecret,
+      grant_type: "client_credentials",
+    }),
+    cache: "no-store",
+  });
+  const data = await response.json();
+  if (!response.ok || !(data.access_token || data.accessToken)) {
+    console.error("PhonePe token request failed", response.status, data?.message || data?.code);
+    throw new Error("Could not authenticate with PhonePe.");
+  }
+  return data.access_token || data.accessToken;
+}
 
 export async function POST(request) {
+  const config = phonePeConfig();
+  if (!config.clientId || !config.clientSecret || !config.clientVersion) {
+    return NextResponse.json({ error: "PhonePe payments are not configured yet." }, { status: 503 });
+  }
+
   let body;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON request body." }, { status: 400 });
+    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const { buzzoraOrderId } = body || {};
-
-  // Step 1: Input Validation
-  if (!buzzoraOrderId || typeof buzzoraOrderId !== "string" || !/^BZ-[A-Z0-9-]+$/i.test(buzzoraOrderId.trim())) {
-    return NextResponse.json(
-      { error: "Invalid or missing buzzoraOrderId. Must be a valid Buzzora Order ID string." },
-      { status: 400 }
-    );
-  }
-
-  const cleanBuzzoraOrderId = buzzoraOrderId.trim();
-
-  // Step 2: Load Authoritative Order from Supabase
-  const supabase = createServerSupabaseClient();
-  const { data: order, error: orderError } = await supabase
-    .from("orders")
-    .select("id, buzzora_order_id, status, subtotal, shipping_cost, total, currency, customer_phone")
-    .eq("buzzora_order_id", cleanBuzzoraOrderId)
-    .single();
-
-  if (orderError || !order) {
-    return NextResponse.json({ error: "Order not found." }, { status: 404 });
-  }
-
-  // Validate Order Status
-  if (order.status === "CONFIRMED") {
-    return NextResponse.json(
-      { error: "Order has already been confirmed/paid.", buzzoraOrderId: cleanBuzzoraOrderId, status: "CONFIRMED" },
-      { status: 400 }
-    );
-  }
-
-  if (["PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"].includes(order.status)) {
-    return NextResponse.json(
-      { error: `Order cannot be paid because status is '${order.status}'.`, buzzoraOrderId: cleanBuzzoraOrderId, status: order.status },
-      { status: 400 }
-    );
-  }
-
-  if (order.status !== "PENDING") {
-    return NextResponse.json(
-      { error: `Order status '${order.status}' is not eligible for payment.`, buzzoraOrderId: cleanBuzzoraOrderId, status: order.status },
-      { status: 400 }
-    );
-  }
-
-  // Step 3: Load Order Items for verification
-  const { data: items, error: itemsError } = await supabase
-    .from("order_items")
-    .select("id, product_id, size_sku, quantity, unit_price, line_total")
-    .eq("order_id", order.id);
-
-  if (itemsError || !items || items.length === 0) {
-    return NextResponse.json({ error: "Order line items not found or invalid." }, { status: 400 });
-  }
-
-  // Step 4: Convert Financial Total to Paisa (Server-Derived)
-  const numericTotal = Number(order.total);
-  if (!Number.isFinite(numericTotal) || numericTotal <= 0) {
-    return NextResponse.json({ error: "Invalid order financial total." }, { status: 400 });
-  }
-  const amountInPaisa = Math.round(numericTotal * 100);
-  if (!Number.isInteger(amountInPaisa) || amountInPaisa <= 0) {
-    return NextResponse.json({ error: "Calculated amount in paisa must be a positive integer." }, { status: 400 });
-  }
-
-  // Step 5: Generate Unique Payment Attempt Identifier (merchant_transaction_id)
-  const randomSuffix = crypto.randomBytes(4).toString("hex");
-  let merchantTransactionId = `MT-${cleanBuzzoraOrderId}-${randomSuffix}`;
-  if (merchantTransactionId.length > 63) {
-    const shortId = cleanBuzzoraOrderId.slice(0, 30);
-    merchantTransactionId = `MT-${shortId}-${randomSuffix}`;
-  }
-
-  // Step 6: Insert Payment Attempt Row in public.payments BEFORE Calling PhonePe
-  const { data: paymentRecord, error: insertPaymentError } = await supabase
-    .from("payments")
-    .insert({
-      order_id: order.id,
-      payment_provider: "phonepe",
-      merchant_transaction_id: merchantTransactionId,
-      amount: numericTotal,
-      currency: order.currency || "INR",
-      payment_status: "PENDING",
-      provider_transaction_id: null,
-      provider_response: null,
-    })
-    .select("id, merchant_transaction_id, payment_status")
-    .single();
-
-  if (insertPaymentError || !paymentRecord) {
-    console.error("[POST /api/phonepe/order] Payment insert error:", insertPaymentError?.message);
-    return NextResponse.json({ error: "Failed to record payment attempt in database." }, { status: 500 });
-  }
-
-  // Step 7: Construct Redirect Callback URL
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || request.headers.get("origin") || "http://localhost:3000";
-  const cleanSiteUrl = siteUrl.replace(/\/$/, "");
-  const redirectUrl = `${cleanSiteUrl}/api/phonepe/callback`;
-
-  // Step 8 & 9: Call PhonePe API (or Development Mock Provider) & Handle Initiation
+  let total;
   try {
-    const phonePeResult = isPhonePeMockModeEnabled()
-      ? await initiateMockPhonePePayment({
-          merchantOrderId: merchantTransactionId,
-          amountInPaisa,
-          redirectUrl,
-        })
-      : await initiatePhonePePayment({
-          merchantOrderId: merchantTransactionId,
-          amountInPaisa,
-          redirectUrl,
-          customerPhone: order.customer_phone,
-          metaInfo: {
-            udf1: cleanBuzzoraOrderId,
-          },
-        });
+    total = getCartTotal(body?.items);
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
 
-    const providerTxId =
-      phonePeResult.rawResponse?.transactionId ||
-      phonePeResult.rawResponse?.data?.transactionId ||
-      (phonePeResult.isMock ? `MOCK_TX_${paymentRecord.id.slice(0, 8)}` : null);
+  const merchantOrderId = newOrderId();
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || request.headers.get("origin") || "http://localhost:3000";
 
-    // Update payment record with provider metadata
-    await supabase
-      .from("payments")
-      .update({
-        provider_transaction_id: providerTxId,
-        provider_response: {
-          tokenUrl: phonePeResult.tokenUrl,
-          code: phonePeResult.rawResponse?.code || "PAYMENT_INITIATED",
-          isMock: Boolean(phonePeResult.isMock),
+  try {
+    const token = await getAccessToken(config);
+    const paymentResponse = await fetch(`${config.apiBase}/checkout/v2/pay`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `O-Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        merchantOrderId,
+        amount: total * 100,
+        expireAfter: 1200,
+        metaInfo: { udf1: "buzzora-web" },
+        paymentFlow: {
+          type: "PG_CHECKOUT",
+          message: "Buzzora order payment",
+          merchantUrls: { redirectUrl: `${siteUrl}/checkout` },
         },
-      })
-      .eq("id", paymentRecord.id);
-
-    // Return client-safe response
-    return NextResponse.json({
-      success: true,
-      buzzoraOrderId: cleanBuzzoraOrderId,
-      merchantOrderId: merchantTransactionId,
-      redirectUrl: phonePeResult.redirectUrl,
-      tokenUrl: phonePeResult.tokenUrl,
+      }),
+      cache: "no-store",
     });
-  } catch (phonePeError) {
-    console.error("[POST /api/phonepe/order] PhonePe initiation error:", phonePeError.message);
+    const payment = await paymentResponse.json();
+    const tokenUrl = payment.redirectUrl || payment.data?.redirectUrl;
+    if (!paymentResponse.ok || !tokenUrl) {
+      console.error("PhonePe payment request failed", paymentResponse.status, payment?.message || payment?.code);
+      return NextResponse.json({ error: "Could not start PhonePe payment." }, { status: 502 });
+    }
 
-    // Mark the payment attempt as FAILED in database
-    await supabase
-      .from("payments")
-      .update({
-        payment_status: "FAILED",
-        provider_response: {
-          error: phonePeError.message || "Failed to initiate PhonePe payment",
-        },
-      })
-      .eq("id", paymentRecord.id);
-
-    return NextResponse.json(
-      { error: phonePeError.message || "Could not initiate PhonePe payment attempt. Please try again." },
-      { status: 502 }
-    );
+    return NextResponse.json({ merchantOrderId, tokenUrl });
+  } catch (error) {
+    console.error("PhonePe order creation failed", error);
+    return NextResponse.json({ error: error.message || "Could not start PhonePe payment." }, { status: 502 });
   }
 }

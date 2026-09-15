@@ -57,9 +57,9 @@ export default function CartDrawer() {
                   className="flex gap-3 rounded-2xl border border-charcoal/10 bg-white p-3"
                 >
                   <div className="flex h-20 w-16 shrink-0 items-center justify-center rounded-xl bg-honey-50 p-1">
-                    {(item.size?.image || item.product.image) ? (
+                    {item.product.image ? (
                       <img
-                        src={item.size?.image || item.product.image}
+                        src={item.product.image}
                         alt={item.product.name}
                         className="h-16 w-auto max-h-16 object-contain drop-shadow-sm"
                       />

@@ -51,7 +51,7 @@ export const hiveSteps = [
   {
     emoji: "🌼",
     title: "Flower",
-    text: "It starts with the wild flora of the J&K valleys — Sulai blossoms, mountain wildflowers and blossoming trees.",
+    text: "It starts with the wild flora of the J&K valleys — tulsi, wildflowers and blossoming trees.",
   },
   {
     emoji: "🐝",
