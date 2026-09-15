@@ -108,7 +108,8 @@ export default function CheckoutForm() {
       JSON.stringify({ ...order, shippingAddress: customer })
     );
     clearCart();
-    router.push(`/order-success?order=${order.id}`);
+    const vtParam = order?.verificationToken ? `&vt=${encodeURIComponent(order.verificationToken)}` : "";
+    router.push(`/order-success?order=${encodeURIComponent(order.id)}${vtParam}`);
   };
 
   // --- WhatsApp / email / manual order ---------------------------------------

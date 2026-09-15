@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { verifyOrderToken } from "@/lib/security";
 
 export async function GET(request, { params }) {
   const buzzoraOrderId = params?.id;
@@ -10,6 +11,9 @@ export async function GET(request, { params }) {
   ) {
     return NextResponse.json({ error: "Invalid Buzzora Order ID format" }, { status: 400 });
   }
+
+  const { searchParams } = new URL(request.url);
+  const vt = searchParams.get("vt") || "";
 
   const supabase = createServerSupabaseClient();
 
@@ -24,6 +28,9 @@ export async function GET(request, { params }) {
   if (orderError || !order) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
+
+  // Authorize PII access using verification token (vt)
+  const isAuthorized = verifyOrderToken(order.buzzora_order_id, order.customer_email, vt);
 
   const { data: items, error: itemsError } = await supabase
     .from("order_items")
@@ -43,32 +50,38 @@ export async function GET(request, { params }) {
     lineTotal: Number(i.line_total),
   }));
 
+  // If authorized via vt token, return full customer details. Otherwise sanitize PII.
   const safeOrder = {
     id: order.buzzora_order_id,
-    status: order.status, // "PENDING", "CONFIRMED", etc.
-    customer: {
-      name: order.customer_name,
-      email: order.customer_email,
-      phone: order.customer_phone,
-      address: order.shipping_address,
-      city: order.city,
-      state: order.state,
-      postcode: order.postcode,
-      country: order.country,
-    },
-    shippingAddress: {
-      address: order.shipping_address,
-      city: order.city,
-      state: order.state,
-      postcode: order.postcode,
-      country: order.country,
-    },
+    status: order.status,
+    customer: isAuthorized
+      ? {
+          name: order.customer_name,
+          email: order.customer_email,
+          phone: order.customer_phone,
+          address: order.shipping_address,
+          city: order.city,
+          state: order.state,
+          postcode: order.postcode,
+          country: order.country,
+        }
+      : null,
+    shippingAddress: isAuthorized
+      ? {
+          address: order.shipping_address,
+          city: order.city,
+          state: order.state,
+          postcode: order.postcode,
+          country: order.country,
+        }
+      : null,
     lines,
     subtotal: Number(order.subtotal),
     shipping: Number(order.shipping_cost),
     total: Number(order.total),
     currency: order.currency,
     createdAt: order.created_at,
+    isAuthorized,
   };
 
   return NextResponse.json({ order: safeOrder });

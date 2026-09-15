@@ -59,6 +59,7 @@ export default function Footer() {
               <li><Link href="/shop" className="text-cream/80 transition hover:text-honey-300">All Honey</Link></li>
               <li><Link href="/products/sulai-honey" className="text-cream/80 transition hover:text-honey-300">Sulai Honey</Link></li>
               <li><Link href="/wholesale" className="text-cream/80 transition hover:text-honey-300">Wholesale</Link></li>
+              <li><Link href="/track-order" className="text-cream/80 transition hover:text-honey-300">Track Order</Link></li>
             </ul>
           </div>
 

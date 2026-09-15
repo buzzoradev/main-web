@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { products, getProduct, relatedProducts, minPrice, CURRENCY } from "@/lib/products";
 import ProductDetailView from "@/components/ProductDetailView";
+import ProductCard from "@/components/ProductCard";
 
 export function generateStaticParams() {
   return products.map((p) => ({ slug: p.slug }));

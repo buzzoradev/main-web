@@ -12,6 +12,7 @@ const links = [
   { href: "/about", label: "Our Story" },
   { href: "/hive-to-jar", label: "From Hive to Jar" },
   { href: "/journal", label: "Journal" },
+  { href: "/track-order", label: "Track Order" },
   { href: "/contact", label: "Contact" },
 ];
 
