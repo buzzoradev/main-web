@@ -8,6 +8,7 @@ export default function sitemap() {
     "",
     "/shop",
     "/about",
+    "/contact",
     "/hive-to-jar",
     "/journal",
     "/wholesale",

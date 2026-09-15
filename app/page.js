@@ -62,8 +62,8 @@ export default function HomePage() {
             </svg>
             <div className="relative animate-floaty drop-shadow-2xl">
               <img
-                src="/product images/wild tulsi 01.png"
-                alt="Wild Tulsi Honey"
+                src="/product images/sulai 200g.png"
+                alt="Sulai Honey"
                 className="h-[310px] sm:h-[370px] w-auto object-contain"
               />
             </div>
@@ -83,14 +83,14 @@ export default function HomePage() {
         <Reveal>
           <p className="eyebrow text-center">Our honey</p>
           <h2 className="mt-2 text-center font-display text-4xl sm:text-5xl">
-            Two valleys. Two characters.
+            Pure Raw Sulai Honey
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-center text-charcoal-mute">
-            Every variety is shaped by the flora the bees forage on. Choose the character that
-            suits your table.
+            Shaped by wild Sulai flora in the high-altitude valleys of Jammu &amp; Kashmir.
+            Choose your preferred jar size below.
           </p>
         </Reveal>
-        <div className="mx-auto mt-10 grid max-w-3xl gap-6 sm:grid-cols-2">
+        <div className="mx-auto mt-10 max-w-md">
           {products.map((p, i) => (
             <Reveal key={p.id} delay={i * 100}>
               <ProductCard product={p} />
@@ -162,12 +162,12 @@ export default function HomePage() {
             </h2>
             <p className="mt-6 text-base leading-relaxed text-charcoal-mute">
               Our hives sit in some of the most serene valleys in the Himalayan region, where
-              wild tulsi and diverse mountain flora bloom through the seasons. What the bees
+              wild Sulai (Plectranthus rugosus) flora blooms through the season. What the bees
               forage on is what you taste — the landscape writes the flavour, and we just
               carry it to the jar.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3 text-sm font-semibold text-forest">
-              <span className="rounded-full bg-white px-4 py-2 shadow-soft">Wild tulsi flora</span>
+              <span className="rounded-full bg-white px-4 py-2 shadow-soft">Wild Sulai flora</span>
               <span className="rounded-full bg-white px-4 py-2 shadow-soft">Himalayan wildflowers</span>
               <span className="rounded-full bg-white px-4 py-2 shadow-soft">Ethical beekeeping</span>
               <span className="rounded-full bg-white px-4 py-2 shadow-soft">Serene valleys</span>
