@@ -3,20 +3,33 @@ import { products } from "@/lib/products";
 import { newOrderId } from "@/lib/order";
 import { createOrderRecord } from "@/lib/db/orders";
 import { generateOrderVerificationToken } from "@/lib/security";
+import { orderCreateRateLimit, rateLimitResponse } from "@/lib/security/ratelimit";
+import { readBoundedJson, normalizeEmail } from "@/lib/security/request";
 
 export async function POST(request) {
+  // 1. Enforce rate limiting on public order creation (15 orders / 10 minutes per IP)
+  const rateLimitResult = await orderCreateRateLimit(request);
+  if (!rateLimitResult.success) {
+    return rateLimitResponse(
+      rateLimitResult,
+      "Too many order creation requests. Please wait a few moments before trying again."
+    );
+  }
+
+  // 2. Read bounded JSON body (max 64KB)
   let body;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    body = await readBoundedJson(request, { maxBytes: 64 * 1024 });
+  } catch (err) {
+    const status = err.statusCode || 400;
+    return NextResponse.json({ error: err.message || "Invalid request body" }, { status });
   }
 
   const headerIdempotencyKey = request.headers.get("x-idempotency-key") || request.headers.get("idempotency-key");
   const { customer, items, orderId: clientOrderId, idempotencyKey: bodyIdempotencyKey } = body || {};
   const idempotencyKey = bodyIdempotencyKey || headerIdempotencyKey || null;
 
-  // 1. Validate Customer Contact & Shipping Fields
+  // 3. Validate Customer Contact & Shipping Fields
   const required = ["name", "email", "phone", "address", "city", "state", "postcode", "country"];
   for (const field of required) {
     if (!customer?.[field] || typeof customer[field] !== "string" || !customer[field].trim()) {
@@ -24,12 +37,17 @@ export async function POST(request) {
     }
   }
 
-  // 2. Validate Cart Items Array
-  if (!Array.isArray(items) || items.length === 0) {
-    return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
+  const cleanCustomerEmail = normalizeEmail(customer.email);
+  if (!cleanCustomerEmail.includes("@")) {
+    return NextResponse.json({ error: "Invalid email format." }, { status: 400 });
   }
 
-  // 3. Reconstruct lines & price totals strictly from server-side product catalog
+  // 4. Validate Cart Items Array
+  if (!Array.isArray(items) || items.length === 0 || items.length > 50) {
+    return NextResponse.json({ error: "Cart must contain between 1 and 50 items." }, { status: 400 });
+  }
+
+  // 5. Reconstruct lines & price totals strictly from server-side product catalog
   const lines = [];
   const itemsData = [];
 
@@ -39,7 +57,7 @@ export async function POST(request) {
     const qty = Number(item.qty);
 
     if (!product || !size || !Number.isInteger(qty) || qty < 1 || qty > 50) {
-      return NextResponse.json({ error: "Invalid cart item" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid cart item." }, { status: 400 });
     }
 
     if (!size.inStock) {
@@ -72,21 +90,21 @@ export async function POST(request) {
     });
   }
 
-  // 4. Calculate Server-Side Financial Totals (INR)
+  // 6. Calculate Server-Side Financial Totals (INR)
   const subtotal = lines.reduce((sum, l) => sum + l.lineTotal, 0);
   const shippingCost = 0;
   const total = subtotal + shippingCost;
 
-  // 5. Generate / Preserve Unique Public Buzzora Order ID (e.g. 'BZ-LVT26K1L-X9A1')
+  // 7. Generate / Preserve Unique Public Buzzora Order ID (e.g. 'BZ-LVT26K1L-X9A1')
   const buzzoraOrderId = clientOrderId || newOrderId();
 
-  // 6. Save Order & Items Atomically to Supabase PostgreSQL Database via RPC
+  // 8. Save Order & Items Atomically to Supabase PostgreSQL Database via RPC
   try {
     const dbResult = await createOrderRecord({
       orderData: {
         buzzora_order_id: buzzoraOrderId,
         customer_name: customer.name.trim(),
-        customer_email: customer.email.trim(),
+        customer_email: cleanCustomerEmail,
         customer_phone: customer.phone.trim(),
         shipping_address: customer.address.trim(),
         city: customer.city.trim(),
@@ -101,10 +119,10 @@ export async function POST(request) {
       idempotencyKey,
     });
 
-    // 7. Return Response Compatible with Existing Checkout UI
+    // 9. Return Response Compatible with Existing Checkout UI
     const verificationToken = generateOrderVerificationToken(
       dbResult.buzzoraOrderId,
-      customer.email.trim()
+      cleanCustomerEmail
     );
 
     const orderResponse = {
@@ -114,7 +132,7 @@ export async function POST(request) {
       verificationToken,
       customer: {
         name: customer.name.trim(),
-        email: customer.email.trim(),
+        email: cleanCustomerEmail,
         phone: customer.phone.trim(),
         address: customer.address.trim(),
         city: customer.city.trim(),

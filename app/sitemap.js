@@ -1,7 +1,7 @@
 import { products } from "@/lib/products";
 import { articles } from "@/lib/articles";
 
-const base = process.env.NEXT_PUBLIC_SITE_URL || "https://buzzora.co.in";
+const base = process.env.NEXT_PUBLIC_SITE_URL || "https://www.buzzora.co.in";
 
 export default function sitemap() {
   const staticPages = [

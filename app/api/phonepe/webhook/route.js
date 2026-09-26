@@ -1,17 +1,33 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { verifyPhonePeWebhook, getPhonePeOrderStatus } from "@/lib/phonepe/server";
+import { phonePeWebhookRateLimit, rateLimitResponse } from "@/lib/security/ratelimit";
+import { sendOrderConfirmationEmail } from "@/lib/email/service";
 
 export async function POST(request) {
-  // A1 & A2. Read raw request body & verify HMAC authentication BEFORE JSON parsing
+  // Rate limit protection against volumetric floods (generous 60/min window so legitimate retries pass)
+  const rateLimitResult = await phonePeWebhookRateLimit(request);
+  if (!rateLimitResult.success) {
+    return rateLimitResponse(rateLimitResult, "Too many webhook requests from this source.");
+  }
+
+  // A1 & A2. Read raw request body with bounded payload protection (max 128KB)
   let rawBody;
   try {
+    const contentLength = parseInt(request.headers?.get?.("content-length") || "0", 10);
+    if (contentLength > 128 * 1024) {
+      return NextResponse.json({ error: "Payload exceeds size limit." }, { status: 413 });
+    }
     rawBody = await request.text();
+    if (Buffer.byteLength(rawBody, "utf8") > 128 * 1024) {
+      return NextResponse.json({ error: "Payload exceeds size limit." }, { status: 413 });
+    }
   } catch (err) {
     console.error("[PhonePe Webhook Error]: Could not read raw request body:", err.message);
     return NextResponse.json({ error: "Could not read request body." }, { status: 400 });
   }
 
+  // Verify HMAC authentication on raw request body BEFORE JSON parsing
   const authVerification = verifyPhonePeWebhook({
     rawBody,
     headers: request.headers,
@@ -205,6 +221,15 @@ export async function POST(request) {
     }
 
     console.log(`[PhonePe Webhook Success]: Payment '${merchantOrderId}' -> SUCCESS, Order '${order.buzzora_order_id}' -> CONFIRMED.`);
+
+    // Send transactional order confirmation email non-blockingly (idempotent)
+    sendOrderConfirmationEmail({
+      orderId: order.id,
+      buzzoraOrderId: order.buzzora_order_id,
+    }).catch((emailErr) => {
+      console.warn("[PhonePe Webhook Email Warning]:", emailErr.message);
+    });
+
     return NextResponse.json({ success: true, buzzoraOrderId: order.buzzora_order_id });
   }
 

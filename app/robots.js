@@ -1,4 +1,4 @@
-const base = process.env.NEXT_PUBLIC_SITE_URL || "https://buzzora.co.in";
+const base = process.env.NEXT_PUBLIC_SITE_URL || "https://www.buzzora.co.in";
 
 export default function robots() {
   return {

@@ -20,10 +20,13 @@ const sans = Manrope({
   display: "swap",
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://buzzora.co.in";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.buzzora.co.in";
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
+  alternates: {
+    canonical: "/",
+  },
   title: {
     default: "Buzzora — Raw Honey from the Valleys of Jammu & Kashmir",
     template: "%s — Buzzora",
@@ -41,6 +44,7 @@ export const metadata = {
     title: "Buzzora — Raw Honey from the Valleys of Jammu & Kashmir",
     description:
       "From hive to jar, nothing added, nothing taken away. Raw honey ethically sourced from J&K.",
+    url: SITE_URL,
     type: "website",
     siteName: "Buzzora",
   },

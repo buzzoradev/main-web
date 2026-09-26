@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getPhonePeOrderStatus } from "@/lib/phonepe/server";
 import { generateOrderVerificationToken } from "@/lib/security";
+import { sendOrderConfirmationEmail } from "@/lib/email/service";
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -105,6 +106,14 @@ export async function GET(request) {
         .eq("id", order.id)
         .eq("status", "PENDING");
     }
+
+    // Send transactional order confirmation email non-blockingly (idempotent)
+    sendOrderConfirmationEmail({
+      orderId: order.id,
+      buzzoraOrderId: order.buzzora_order_id,
+    }).catch((emailErr) => {
+      console.warn("[PhonePe Callback Email Warning]:", emailErr.message);
+    });
 
     return NextResponse.redirect(
       `${cleanSiteUrl}/order-success?order=${encodeURIComponent(order.buzzora_order_id)}&vt=${encodeURIComponent(vt)}`
