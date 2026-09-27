@@ -22,7 +22,7 @@ export default function Footer() {
 
             <div className="mt-5 space-y-1.5 text-xs text-cream/75">
               <p>
-                <strong className="text-cream/90">Address:</strong> Near Govt Middle School, Janglote Kathua Tehsil, Kathua, Jammu &amp; Kashmir - 184104
+                <strong className="text-cream/90">Address:</strong> Kathua, Jammu &amp; Kashmir
               </p>
               <p>
                 <strong className="text-cream/90">Email:</strong>{" "}
@@ -32,8 +32,8 @@ export default function Footer() {
               </p>
               <p>
                 <strong className="text-cream/90">Phone:</strong>{" "}
-                <a href="https://wa.me/919186009531" target="_blank" rel="noopener noreferrer" className="hover:text-honey-300 underline">
-                  +91 9186009531
+                <a href="https://wa.me/916005039259" target="_blank" rel="noopener noreferrer" className="hover:text-honey-300 underline">
+                  +91 6005039259
                 </a>
               </p>
             </div>

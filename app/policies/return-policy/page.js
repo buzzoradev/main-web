@@ -44,7 +44,7 @@ export default function ReturnPolicyPage() {
       <PolicySection title="Step-by-Step Return Request Process">
         <ol className="list-decimal pl-5 space-y-2 text-charcoal-mute">
           <li>
-            <strong>Step 1 — Contact Support:</strong> Reach out to us via email at <a href="mailto:buzzora.dev@gmail.com" className="underline text-honey-700 font-semibold">buzzora.dev@gmail.com</a>, call/WhatsApp at <strong>+91 9186009531</strong>, or submit a request on our <Link href="/contact" className="underline text-honey-700 font-semibold">Contact Us Page</Link>.
+            <strong>Step 1 — Contact Support:</strong> Reach out to us via email at <a href="mailto:buzzora.dev@gmail.com" className="underline text-honey-700 font-semibold">buzzora.dev@gmail.com</a>, call/WhatsApp at <strong>+91 6005039259</strong>, or submit a request on our <Link href="/contact" className="underline text-honey-700 font-semibold">Contact Us Page</Link>.
           </li>
           <li>
             <strong>Step 2 — Provide Order Details:</strong> Share your order number, product name, description of the issue, and clear photos where applicable.
@@ -89,9 +89,9 @@ export default function ReturnPolicyPage() {
         <ul className="mt-2 space-y-1 text-sm text-charcoal-mute">
           <li><strong>Trade / Brand Name:</strong> Buzzora</li>
           <li><strong>Legal Proprietor:</strong> Kannu Priya (Sole Proprietorship)</li>
-          <li><strong>Registered Business Address:</strong> Near Govt Middle School, Janglote Kathua Tehsil, Kathua, Kathua, Jammu &amp; Kashmir - 184104</li>
+          <li><strong>Registered Business Address:</strong> Kathua, Jammu &amp; Kashmir</li>
           <li><strong>Business Email:</strong> <a href="mailto:buzzora.dev@gmail.com" className="underline text-honey-700">buzzora.dev@gmail.com</a></li>
-          <li><strong>Business Phone:</strong> <a href="https://wa.me/919186009531" target="_blank" rel="noopener noreferrer" className="underline text-honey-700">+91 9186009531</a></li>
+          <li><strong>Business Phone:</strong> <a href="https://wa.me/916005039259" target="_blank" rel="noopener noreferrer" className="underline text-honey-700">+91 6005039259</a></li>
           <li><strong>Contact Page:</strong> <Link href="/contact" className="underline text-honey-700">Contact Us</Link></li>
         </ul>
       </PolicySection>

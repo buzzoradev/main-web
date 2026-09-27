@@ -67,7 +67,7 @@ export default function ContactPage() {
                   <div className="border-b border-charcoal/5 pb-3">
                     <dt className="text-xs font-semibold uppercase tracking-wider text-charcoal-mute">Registered Business Address</dt>
                     <dd className="mt-1 text-sm leading-relaxed text-charcoal">
-                      Near Govt Middle School, Janglote Kathua Tehsil, Kathua, Kathua, Jammu &amp; Kashmir - 184104
+                      Kathua, Jammu &amp; Kashmir
                     </dd>
                   </div>
                 </dl>
@@ -102,8 +102,8 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wider text-charcoal-mute">Call / WhatsApp</p>
-                      <a href="https://wa.me/919186009531" target="_blank" rel="noopener noreferrer" className="font-medium text-charcoal hover:text-honey-700 underline">
-                        +91 9186009531
+                      <a href="https://wa.me/916005039259" target="_blank" rel="noopener noreferrer" className="font-medium text-charcoal hover:text-honey-700 underline">
+                        +91 6005039259
                       </a>
                     </div>
                   </div>

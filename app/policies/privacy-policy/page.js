@@ -66,9 +66,9 @@ export default function PrivacyPolicyPage() {
         <ul className="mt-2 space-y-1 text-sm text-charcoal-mute">
           <li><strong>Trade / Brand Name:</strong> Buzzora</li>
           <li><strong>Legal Proprietor:</strong> Kannu Priya (Sole Proprietorship)</li>
-          <li><strong>Registered Business Address:</strong> Near Govt Middle School, Janglote Kathua Tehsil, Kathua, Kathua, Jammu &amp; Kashmir - 184104</li>
+          <li><strong>Registered Business Address:</strong> Kathua, Jammu &amp; Kashmir</li>
           <li><strong>Contact Email:</strong> <a href="mailto:buzzora.dev@gmail.com" className="underline text-honey-700">buzzora.dev@gmail.com</a></li>
-          <li><strong>Phone / WhatsApp:</strong> <a href="https://wa.me/919186009531" target="_blank" rel="noopener noreferrer" className="underline text-honey-700">+91 9186009531</a></li>
+          <li><strong>Phone / WhatsApp:</strong> <a href="https://wa.me/916005039259" target="_blank" rel="noopener noreferrer" className="underline text-honey-700">+91 6005039259</a></li>
           <li><strong>Support Hours:</strong> Monday – Friday (9:00 – 18:00 IST)</li>
         </ul>
       </PolicySection>
