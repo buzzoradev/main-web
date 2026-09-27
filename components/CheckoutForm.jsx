@@ -10,7 +10,7 @@ import { payWithRazorpay } from "@/lib/razorpay-client";
 import { payWithPhonePe } from "@/lib/phonepe-client";
 import BeeCharacter from "@/components/BeeCharacter";
 import JarVisual from "@/components/JarVisual";
-import GoogleSignIn from "@/components/GoogleSignIn";
+import { validateCustomerCheckout } from "@/lib/validation/checkout";
 
 const fields = [
   { name: "name", label: "Full name", autoComplete: "name", span: 2 },
@@ -34,7 +34,7 @@ export default function CheckoutForm() {
   const searchParams = useSearchParams();
 
   const [customer, setCustomer] = useState({ country: "India" });
-  const [googleUser, setGoogleUser] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [existingBuzzoraOrderId, setExistingBuzzoraOrderId] = useState(null);
@@ -67,19 +67,6 @@ export default function CheckoutForm() {
     }
   }, [searchParams]);
 
-  const handleGoogleSignIn = (userInfo) => {
-    setGoogleUser(userInfo);
-    setCustomer((c) => ({
-      ...c,
-      name: userInfo.name || c.name || "",
-      email: userInfo.email || c.email || "",
-    }));
-  };
-
-  const handleGoogleSignOut = () => {
-    setGoogleUser(null);
-  };
-
   if (items.length === 0 && !submitting) {
     return (
       <div className="mt-10 rounded-4xl border border-charcoal/10 bg-white p-10 text-center">
@@ -94,18 +81,27 @@ export default function CheckoutForm() {
 
   const cartPayload = items.map(({ productId, sizeSku, qty }) => ({ productId, sizeSku, qty }));
 
-  const requireForm = (form) => {
-    if (!form.checkValidity()) {
-      form.reportValidity();
-      return false;
+  const validateAndNormalize = () => {
+    const validation = validateCustomerCheckout(customer);
+    if (!validation.isValid) {
+      setFieldErrors(validation.errors);
+      setError(validation.firstError || "Please complete all required shipping fields.");
+      const firstField = Object.keys(validation.errors)[0];
+      if (firstField && typeof document !== "undefined") {
+        const input = document.querySelector(`input[name="${firstField}"]`);
+        if (input) input.focus();
+      }
+      return null;
     }
-    return true;
+    setFieldErrors({});
+    setError(null);
+    return validation.normalized;
   };
 
-  const finish = (order) => {
+  const finish = (order, finalCustomer) => {
     sessionStorage.setItem(
       "buzzora-last-order",
-      JSON.stringify({ ...order, shippingAddress: customer })
+      JSON.stringify({ ...order, shippingAddress: finalCustomer || customer })
     );
     clearCart();
     const vtParam = order?.verificationToken ? `&vt=${encodeURIComponent(order.verificationToken)}` : "";
@@ -115,8 +111,11 @@ export default function CheckoutForm() {
   // --- WhatsApp / email / manual order ---------------------------------------
   const placeManualOrder = async (e) => {
     e.preventDefault();
-    const form = e.currentTarget.closest("form");
-    if (!requireForm(form)) return;
+    if (submitting) return;
+
+    const validatedCustomer = validateAndNormalize();
+    if (!validatedCustomer) return;
+
     setSubmitting(true);
     setError(null);
 
@@ -128,7 +127,7 @@ export default function CheckoutForm() {
           "x-idempotency-key": idempotencyKey,
         },
         body: JSON.stringify({
-          customer,
+          customer: validatedCustomer,
           items: cartPayload,
           idempotencyKey,
         }),
@@ -136,15 +135,16 @@ export default function CheckoutForm() {
 
       const data = await res.json();
       if (!res.ok) {
+        if (data.errors) setFieldErrors(data.errors);
         throw new Error(data.error || "Failed to create order");
       }
 
       const order = data.order;
       if (WHATSAPP) {
-        const url = whatsAppUrl(WHATSAPP, orderToWhatsAppText(order, customer));
+        const url = whatsAppUrl(WHATSAPP, orderToWhatsAppText(order, validatedCustomer));
         window.open(url, "_blank", "noopener");
       }
-      finish(order);
+      finish(order, validatedCustomer);
     } catch (err) {
       setError(err.message || "An unexpected error occurred while placing your order.");
       setSubmitting(false);
@@ -154,8 +154,10 @@ export default function CheckoutForm() {
   // --- Online payment ---------------------------------------------------------
   const payOnline = async (e) => {
     e.preventDefault();
-    const form = e.currentTarget.closest("form");
-    if (!requireForm(form)) return;
+    if (submitting) return;
+
+    const validatedCustomer = validateAndNormalize();
+    if (!validatedCustomer) return;
 
     setSubmitting(true);
     setError(null);
@@ -172,7 +174,7 @@ export default function CheckoutForm() {
             "x-idempotency-key": idempotencyKey,
           },
           body: JSON.stringify({
-            customer,
+            customer: validatedCustomer,
             items: cartPayload,
             idempotencyKey,
           }),
@@ -180,6 +182,7 @@ export default function CheckoutForm() {
 
         const data = await res.json();
         if (!res.ok) {
+          if (data.errors) setFieldErrors(data.errors);
           throw new Error(data.error || "Failed to create order");
         }
 
@@ -193,8 +196,8 @@ export default function CheckoutForm() {
         await payWithPhonePe({ buzzoraOrderId: activeBuzzoraOrderId });
         // PhonePe iframe handles redirect to /api/phonepe/callback -> /order-success
       } else if (RAZORPAY) {
-        const order = await payWithRazorpay({ items: cartPayload, customer });
-        finish(order);
+        const order = await payWithRazorpay({ items: cartPayload, customer: validatedCustomer });
+        finish(order, validatedCustomer);
       }
     } catch (err) {
       setError(
@@ -207,30 +210,46 @@ export default function CheckoutForm() {
   return (
     <form className="mt-8 grid gap-8 lg:grid-cols-5" onSubmit={(e) => e.preventDefault()}>
       <div className="space-y-6 lg:col-span-3">
-        <GoogleSignIn
-          user={googleUser}
-          onSignIn={handleGoogleSignIn}
-          onSignOut={handleGoogleSignOut}
-        />
-
         <div className="rounded-4xl border border-charcoal/10 bg-white p-6 sm:p-8">
           <h2 className="font-display text-2xl">Shipping details</h2>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            {fields.map((f) => (
-              <label key={f.name} className={f.span === 2 ? "sm:col-span-2" : ""}>
-                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider2 text-charcoal-mute">
-                  {f.label}
-                </span>
-                <input
-                  required
-                  type={f.type || "text"}
-                  autoComplete={f.autoComplete}
-                  value={customer[f.name] || ""}
-                  onChange={(e) => setCustomer((c) => ({ ...c, [f.name]: e.target.value }))}
-                  className="input"
-                />
-              </label>
-            ))}
+            {fields.map((f) => {
+              const hasError = Boolean(fieldErrors[f.name]);
+              return (
+                <label key={f.name} className={f.span === 2 ? "sm:col-span-2" : ""}>
+                  <span className="mb-1.5 flex items-center justify-between text-xs font-semibold uppercase tracking-wider2 text-charcoal-mute">
+                    <span>
+                      {f.label} <span className="text-honey-700">*</span>
+                    </span>
+                    {hasError && (
+                      <span className="text-red-600 font-medium normal-case tracking-normal">
+                        {fieldErrors[f.name]}
+                      </span>
+                    )}
+                  </span>
+                  <input
+                    name={f.name}
+                    required
+                    type={f.type || "text"}
+                    autoComplete={f.autoComplete}
+                    value={customer[f.name] || ""}
+                    onChange={(e) => {
+                      setCustomer((c) => ({ ...c, [f.name]: e.target.value }));
+                      if (fieldErrors[f.name]) {
+                        setFieldErrors((prev) => {
+                          const updated = { ...prev };
+                          delete updated[f.name];
+                          return updated;
+                        });
+                      }
+                    }}
+                    className={`input ${
+                      hasError ? "border-red-400 focus:border-red-500 focus:ring-red-200" : ""
+                    }`}
+                  />
+                </label>
+              );
+            })}
           </div>
         </div>
         <div className="relative mt-4 overflow-hidden rounded-4xl border border-charcoal/10 bg-white p-6 sm:p-8">

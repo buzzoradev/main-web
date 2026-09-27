@@ -4,7 +4,8 @@ import { newOrderId } from "@/lib/order";
 import { createOrderRecord } from "@/lib/db/orders";
 import { generateOrderVerificationToken } from "@/lib/security";
 import { orderCreateRateLimit, rateLimitResponse } from "@/lib/security/ratelimit";
-import { readBoundedJson, normalizeEmail } from "@/lib/security/request";
+import { readBoundedJson } from "@/lib/security/request";
+import { validateCustomerCheckout } from "@/lib/validation/checkout";
 
 export async function POST(request) {
   // 1. Enforce rate limiting on public order creation (15 orders / 10 minutes per IP)
@@ -29,18 +30,16 @@ export async function POST(request) {
   const { customer, items, orderId: clientOrderId, idempotencyKey: bodyIdempotencyKey } = body || {};
   const idempotencyKey = bodyIdempotencyKey || headerIdempotencyKey || null;
 
-  // 3. Validate Customer Contact & Shipping Fields
-  const required = ["name", "email", "phone", "address", "city", "state", "postcode", "country"];
-  for (const field of required) {
-    if (!customer?.[field] || typeof customer[field] !== "string" || !customer[field].trim()) {
-      return NextResponse.json({ error: `Missing required field: ${field}` }, { status: 400 });
-    }
+  // 3. Validate Customer Contact & Shipping Fields (Strict Server-Side Validation)
+  const validation = validateCustomerCheckout(customer);
+  if (!validation.isValid) {
+    return NextResponse.json(
+      { error: validation.firstError || "Invalid customer shipping details.", errors: validation.errors },
+      { status: 400 }
+    );
   }
 
-  const cleanCustomerEmail = normalizeEmail(customer.email);
-  if (!cleanCustomerEmail.includes("@")) {
-    return NextResponse.json({ error: "Invalid email format." }, { status: 400 });
-  }
+  const validatedCustomer = validation.normalized;
 
   // 4. Validate Cart Items Array
   if (!Array.isArray(items) || items.length === 0 || items.length > 50) {
@@ -103,14 +102,14 @@ export async function POST(request) {
     const dbResult = await createOrderRecord({
       orderData: {
         buzzora_order_id: buzzoraOrderId,
-        customer_name: customer.name.trim(),
-        customer_email: cleanCustomerEmail,
-        customer_phone: customer.phone.trim(),
-        shipping_address: customer.address.trim(),
-        city: customer.city.trim(),
-        state: customer.state.trim(),
-        postcode: customer.postcode.trim(),
-        country: customer.country.trim(),
+        customer_name: validatedCustomer.name,
+        customer_email: validatedCustomer.email,
+        customer_phone: validatedCustomer.phone,
+        shipping_address: validatedCustomer.address,
+        city: validatedCustomer.city,
+        state: validatedCustomer.state,
+        postcode: validatedCustomer.postcode,
+        country: validatedCustomer.country,
         subtotal,
         shipping_cost: shippingCost,
         total,
@@ -122,7 +121,7 @@ export async function POST(request) {
     // 9. Return Response Compatible with Existing Checkout UI
     const verificationToken = generateOrderVerificationToken(
       dbResult.buzzoraOrderId,
-      cleanCustomerEmail
+      validatedCustomer.email
     );
 
     const orderResponse = {
@@ -131,14 +130,14 @@ export async function POST(request) {
       paymentMethod: process.env.PAYMENT_PROVIDER || "manual",
       verificationToken,
       customer: {
-        name: customer.name.trim(),
-        email: cleanCustomerEmail,
-        phone: customer.phone.trim(),
-        address: customer.address.trim(),
-        city: customer.city.trim(),
-        state: customer.state.trim(),
-        postcode: customer.postcode.trim(),
-        country: customer.country.trim(),
+        name: validatedCustomer.name,
+        email: validatedCustomer.email,
+        phone: validatedCustomer.phone,
+        address: validatedCustomer.address,
+        city: validatedCustomer.city,
+        state: validatedCustomer.state,
+        postcode: validatedCustomer.postcode,
+        country: validatedCustomer.country,
       },
       lines,
       subtotal,
