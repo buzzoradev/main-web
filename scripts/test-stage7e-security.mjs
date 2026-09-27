@@ -119,12 +119,12 @@ async function runTests() {
   console.log("--- TEST A: Admin login rate limiting ---");
   const mockReqA = { headers: { "x-forwarded-for": "198.51.100.1" } };
   const loginResults = [];
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 11; i++) {
     loginResults.push(await adminLoginRateLimit(mockReqA, "admin@buzzora.com"));
   }
   assert(loginResults[0].success === true, "Test A.1: First login attempt allowed");
-  assert(loginResults[4].success === true, "Test A.2: Fifth login attempt allowed (limit 5)");
-  assert(loginResults[5].success === false, "Test A.3: Sixth login attempt blocked (429)", `remaining: ${loginResults[5].remaining}`);
+  assert(loginResults[9].success === true, "Test A.2: Tenth login attempt allowed (limit 10)");
+  assert(loginResults[10].success === false, "Test A.3: Eleventh login attempt blocked (429)", `remaining: ${loginResults[10].remaining}`);
 
   // Test A.4: Production fail-closed when Upstash is absent
   const origNodeEnv = process.env.NODE_ENV;

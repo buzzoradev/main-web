@@ -28,7 +28,7 @@ export async function POST(request) {
 
   const cleanEmail = normalizeEmail(email);
 
-  // 2. Enforce Distributed Rate Limiting (5 attempts / 15 minutes)
+  // 2. Enforce Distributed Rate Limiting (10 attempts / 15 minutes)
   const rateLimitResult = await adminLoginRateLimit(request, cleanEmail);
   if (!rateLimitResult.success) {
     await recordAdminAudit({
