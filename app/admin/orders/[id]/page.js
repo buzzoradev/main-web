@@ -166,16 +166,28 @@ export default async function AdminOrderDetailPage({ params }) {
 
               {/* Financial Totals */}
               <div className="mt-4 pt-4 border-t border-stone-800/80 flex flex-col items-end gap-1.5 text-xs">
-                <div className="flex justify-between w-48 text-stone-400">
+                <div className="flex justify-between w-56 text-stone-400">
                   <span>Subtotal:</span>
                   <span className="text-stone-300">{formatCurrency(financials?.subtotal, financials?.currency)}</span>
                 </div>
-                <div className="flex justify-between w-48 text-stone-400">
+                <div className="flex justify-between w-56 text-stone-400">
                   <span>Shipping:</span>
                   <span className="text-stone-300">{formatCurrency(financials?.shippingCost, financials?.currency)}</span>
                 </div>
-                <div className="flex justify-between w-48 pt-2 border-t border-stone-800 font-bold text-sm text-amber-400">
-                  <span>Total:</span>
+                {financials?.couponDiscountAmount > 0 && (
+                  <>
+                    <div className="flex justify-between w-56 text-emerald-400 font-medium">
+                      <span>Coupon ({financials?.couponCode}):</span>
+                      <span>{financials?.couponDiscountPercent}%</span>
+                    </div>
+                    <div className="flex justify-between w-56 text-emerald-400 font-medium">
+                      <span>Discount:</span>
+                      <span>-{formatCurrency(financials?.couponDiscountAmount, financials?.currency)}</span>
+                    </div>
+                  </>
+                )}
+                <div className="flex justify-between w-56 pt-2 border-t border-stone-800 font-bold text-sm text-amber-400">
+                  <span>Final Total:</span>
                   <span>{formatCurrency(financials?.total, financials?.currency)}</span>
                 </div>
               </div>

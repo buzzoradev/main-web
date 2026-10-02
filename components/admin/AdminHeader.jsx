@@ -53,6 +53,17 @@ export default function AdminHeader({ adminContext, currentSection = "dashboard"
                 Payments
               </Link>
               <Link
+                id="admin-nav-coupons"
+                href="/admin/coupons"
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  currentSection === "coupons"
+                    ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                    : "text-stone-400 hover:text-stone-200 hover:bg-stone-800/60"
+                }`}
+              >
+                Coupons
+              </Link>
+              <Link
                 id="admin-nav-audit"
                 href="/admin/audit"
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${

@@ -457,6 +457,12 @@ export default function TrackOrder() {
                   <span>Shipping</span>
                   <span>{orderData.shipping > 0 ? formatPrice(orderData.shipping) : "Free"}</span>
                 </div>
+                {orderData.couponDiscountAmount > 0 && (
+                  <div className="flex justify-between text-emerald-700 font-medium">
+                    <span>Coupon ({orderData.couponCode})</span>
+                    <span>-{formatPrice(orderData.couponDiscountAmount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between border-t border-charcoal/10 pt-3 font-display text-xl text-charcoal">
                   <span>Total</span>
                   <span>{formatPrice(orderData.total)}</span>

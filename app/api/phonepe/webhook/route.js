@@ -218,6 +218,13 @@ export async function POST(request) {
         console.error("[PhonePe Webhook Error]: Failed to update order status to CONFIRMED:", orderUpdateErr.message);
         return NextResponse.json({ error: "Database order status update failed." }, { status: 500 });
       }
+
+      // Mark reserved coupon usage as CONSUMED (best effort)
+      try {
+        await supabase.rpc("consume_coupon_usage", { p_buzzora_order_id: order.buzzora_order_id });
+      } catch {
+        // Non-blocking fallback if RPC not yet deployed remotely
+      }
     }
 
     console.log(`[PhonePe Webhook Success]: Payment '${merchantOrderId}' -> SUCCESS, Order '${order.buzzora_order_id}' -> CONFIRMED.`);

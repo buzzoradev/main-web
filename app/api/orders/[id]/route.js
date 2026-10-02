@@ -58,7 +58,7 @@ export async function GET(request, { params }) {
   const { data: fullOrder, error: fullError } = await supabase
     .from("orders")
     .select(
-      "id, buzzora_order_id, status, customer_name, customer_email, customer_phone, shipping_address, city, state, postcode, country, subtotal, shipping_cost, total, currency, courier_name, tracking_number, tracking_url, shipped_at, delivered_at, created_at"
+      "id, buzzora_order_id, status, customer_name, customer_email, customer_phone, shipping_address, city, state, postcode, country, subtotal, shipping_cost, total, currency, courier_name, tracking_number, tracking_url, shipped_at, delivered_at, created_at, coupon_code, coupon_discount_percent, coupon_discount_amount"
     )
     .eq("buzzora_order_id", cleanOrderId)
     .single();
@@ -67,7 +67,7 @@ export async function GET(request, { params }) {
     const { data: baseOrder, error: baseError } = await supabase
       .from("orders")
       .select(
-        "id, buzzora_order_id, status, customer_name, customer_email, customer_phone, shipping_address, city, state, postcode, country, subtotal, shipping_cost, total, currency, created_at"
+        "id, buzzora_order_id, status, customer_name, customer_email, customer_phone, shipping_address, city, state, postcode, country, subtotal, shipping_cost, total, currency, created_at, coupon_code, coupon_discount_percent, coupon_discount_amount"
       )
       .eq("buzzora_order_id", cleanOrderId)
       .single();
@@ -130,6 +130,9 @@ export async function GET(request, { params }) {
     })),
     subtotal: Number(order.subtotal),
     shipping: Number(order.shipping_cost),
+    couponCode: order.coupon_code || null,
+    couponDiscountPercent: order.coupon_discount_percent ? Number(order.coupon_discount_percent) : null,
+    couponDiscountAmount: Number(order.coupon_discount_amount || 0),
     total: Number(order.total),
     currency: order.currency || "INR",
     courier: {

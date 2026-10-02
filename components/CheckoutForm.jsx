@@ -39,6 +39,12 @@ export default function CheckoutForm() {
   const [error, setError] = useState(null);
   const [existingBuzzoraOrderId, setExistingBuzzoraOrderId] = useState(null);
 
+  // Coupon State
+  const [couponCodeInput, setCouponCodeInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState(null);
+
   const [idempotencyKey] = useState(
     () => "idem_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8)
   );
@@ -80,6 +86,58 @@ export default function CheckoutForm() {
   }
 
   const cartPayload = items.map(({ productId, sizeSku, qty }) => ({ productId, sizeSku, qty }));
+
+  // Dynamic payable display total (authoritative calculation verified with server)
+  const displayTotal = appliedCoupon ? appliedCoupon.finalTotal : subtotal;
+
+  const handleApplyCoupon = async (e) => {
+    if (e) e.preventDefault();
+    const cleanCode = (couponCodeInput || "").trim().toUpperCase();
+    if (!cleanCode) {
+      setCouponError("Please enter a coupon code.");
+      return;
+    }
+
+    if (couponLoading) return;
+    setCouponLoading(true);
+    setCouponError(null);
+
+    try {
+      const res = await fetch("/api/coupons/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: cleanCode,
+          items: cartPayload,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.valid) {
+        throw new Error(data.error || "Invalid coupon code.");
+      }
+
+      setAppliedCoupon({
+        code: data.code,
+        discountPercent: data.discountPercent,
+        discountAmount: data.discountAmount,
+        subtotal: data.subtotal,
+        finalTotal: data.finalTotal,
+      });
+      setCouponError(null);
+    } catch (err) {
+      setCouponError(err.message || "Unable to apply coupon.");
+      setAppliedCoupon(null);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCodeInput("");
+    setCouponError(null);
+  };
 
   const validateAndNormalize = () => {
     const validation = validateCustomerCheckout(customer);
@@ -130,6 +188,7 @@ export default function CheckoutForm() {
           customer: validatedCustomer,
           items: cartPayload,
           idempotencyKey,
+          couponCode: appliedCoupon ? appliedCoupon.code : null,
         }),
       });
 
@@ -177,6 +236,7 @@ export default function CheckoutForm() {
             customer: validatedCustomer,
             items: cartPayload,
             idempotencyKey,
+            couponCode: appliedCoupon ? appliedCoupon.code : null,
           }),
         });
 
@@ -293,6 +353,66 @@ export default function CheckoutForm() {
               </li>
             ))}
           </ul>
+
+          {/* Coupon Code Section */}
+          <div className="mt-4 border-b border-charcoal/10 pb-4">
+            {appliedCoupon ? (
+              <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-3.5 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 uppercase tracking-wider">
+                    <span>✓</span>
+                    <span>Coupon {appliedCoupon.code} applied</span>
+                  </div>
+                  <div className="text-xs text-emerald-600 mt-0.5">
+                    {appliedCoupon.discountPercent}% discount (-{formatPrice(appliedCoupon.discountAmount)})
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemoveCoupon}
+                  className="text-xs font-semibold text-charcoal-mute hover:text-red-600 transition-colors px-2 py-1"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div>
+                <span className="block text-xs font-semibold uppercase tracking-wider2 text-charcoal-mute mb-1.5">
+                  Coupon Code
+                </span>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Enter coupon code"
+                    value={couponCodeInput}
+                    onChange={(e) => {
+                      setCouponCodeInput(e.target.value.toUpperCase());
+                      if (couponError) setCouponError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleApplyCoupon(e);
+                      }
+                    }}
+                    className="input uppercase tracking-wider font-mono text-sm py-2 px-3 flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    disabled={couponLoading || !couponCodeInput.trim()}
+                    className="btn-primary py-2 px-4 text-xs font-semibold uppercase tracking-wider disabled:opacity-50"
+                  >
+                    {couponLoading ? "Checking…" : "Apply"}
+                  </button>
+                </div>
+                {couponError && (
+                  <p className="mt-2 text-xs text-red-600 font-medium">{couponError}</p>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="mt-4 space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-charcoal-mute">Subtotal</span>
@@ -302,9 +422,15 @@ export default function CheckoutForm() {
               <span className="text-charcoal-mute">Shipping</span>
               <span>{ONLINE_PAYMENT ? "Free" : "Confirmed with order"}</span>
             </div>
+            {appliedCoupon && appliedCoupon.discountAmount > 0 && (
+              <div className="flex justify-between text-emerald-700 font-medium">
+                <span>Discount ({appliedCoupon.code})</span>
+                <span>-{formatPrice(appliedCoupon.discountAmount)}</span>
+              </div>
+            )}
             <div className="flex justify-between border-t border-charcoal/10 pt-3 font-display text-xl">
               <span>Total</span>
-              <span>{formatPrice(subtotal)}</span>
+              <span>{formatPrice(displayTotal)}</span>
             </div>
           </div>
 
@@ -318,8 +444,8 @@ export default function CheckoutForm() {
                 {submitting
                   ? "Processing…"
                   : existingBuzzoraOrderId
-                  ? `Retry Payment (${formatPrice(subtotal)})`
-                  : `Pay ${formatPrice(subtotal)}`}
+                  ? `Retry Payment (${formatPrice(displayTotal)})`
+                  : `Pay ${formatPrice(displayTotal)}`}
               </button>
               {WHATSAPP && (
                 <button onClick={placeManualOrder} disabled={submitting} className="btn-ghost mt-2 w-full disabled:opacity-60">
