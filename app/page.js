@@ -62,7 +62,7 @@ export default function HomePage() {
             </svg>
             <div className="relative animate-floaty drop-shadow-2xl">
               <img
-                src="/product images/sulai 200g.png"
+                src="/product images/sulai 250g.png"
                 alt="Sulai Honey"
                 className="h-[310px] sm:h-[370px] w-auto object-contain"
               />
